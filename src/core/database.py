@@ -1,0 +1,50 @@
+"""
+Configuración de la base de datos con SQLAlchemy.
+Motor y sesión compartidos por todos los módulos.
+"""
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+from src.core.config import settings
+
+
+# Convertir URL de PostgreSQL a async
+async_database_url = settings.database_url.replace(
+    "postgresql://", "postgresql+asyncpg://"
+)
+
+# Motor de base de datos (Singleton)
+engine = create_async_engine(
+    async_database_url,
+    echo=settings.debug,
+    future=True
+)
+
+# Factory de sesiones
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
+)
+
+
+class Base(DeclarativeBase):
+    """Clase base para todos los modelos SQLAlchemy."""
+    pass
+
+
+async def get_db_session() -> AsyncSession:
+    """
+    Dependency para obtener una sesión de base de datos.
+    Uso en FastAPI: Depends(get_db_session)
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
