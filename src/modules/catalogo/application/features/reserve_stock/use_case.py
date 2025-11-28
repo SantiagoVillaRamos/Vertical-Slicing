@@ -3,6 +3,8 @@ Caso de Uso: Reservar Stock de Productos.
 Este use case es llamado por el módulo de Pedidos via el Gateway.
 """
 from typing import List
+
+from src.modules.catalogo.application.interfaces import IReserveStockUseCase
 from src.modules.catalogo.application.features.reserve_stock.command import ReserveStockCommand
 from src.modules.catalogo.application.features.reserve_stock.response import (
     ReserveStockResponse, ProductStockInfo
@@ -11,7 +13,7 @@ from src.modules.catalogo.domain.repositories import ProductRepository
 from src.core.exceptions import BusinessRuleViolation, NotFoundError
 
 
-class ReserveStockUseCase:
+class ReserveStockUseCase(IReserveStockUseCase):
     """
     Caso de Uso: Reservar stock de múltiples productos.
     

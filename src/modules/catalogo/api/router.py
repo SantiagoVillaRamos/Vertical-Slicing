@@ -3,13 +3,12 @@ Router de FastAPI para el módulo de Catálogo.
 Define los endpoints HTTP para gestionar productos.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from typing import List, Annotated
 
+from src.modules.catalogo.application.facade import CatalogoFacade
 from src.modules.catalogo.application.features.create_product.command import CreateProductCommand
 from src.modules.catalogo.application.features.create_product.response import CreateProductResponse
-from src.modules.catalogo.application.features.create_product.use_case import CreateProductUseCase
-from src.modules.catalogo.application.features.list_products.use_case import ListProductsUseCase
-from src.modules.catalogo.api.dependencies import get_create_product_use_case, get_list_products_use_case
+from src.modules.catalogo.api.dependencies import get_catalogo_facade
 from src.core.exceptions import DomainError, BusinessRuleViolation, ValidationError
 
 
@@ -26,14 +25,15 @@ router = APIRouter()
 )
 async def create_product(
     command: CreateProductCommand,
-    use_case: CreateProductUseCase = Depends(get_create_product_use_case)
+    facade: Annotated[CatalogoFacade, Depends(get_catalogo_facade)]
 ) -> CreateProductResponse:
     """
     Endpoint para crear un nuevo producto.
+    Usa la Facade del módulo Catálogo.
     
     Args:
         command: Datos del producto a crear
-        use_case: Caso de uso inyectado automáticamente
+        facade: Facade del módulo inyectada automáticamente
         
     Returns:
         Datos del producto creado
@@ -43,8 +43,8 @@ async def create_product(
         HTTPException 500: Si hay errores internos
     """
     try:
-        # Ejecutar el caso de uso
-        result = await use_case.execute(command)
+        # Ejecutar a través de la facade
+        result = await facade.create_product(command)
         return result
         
     except ValidationError as e:
@@ -83,14 +83,23 @@ async def create_product(
     description="Obtiene una lista paginada de productos"
 )
 async def list_products(
+    facade: Annotated[CatalogoFacade, Depends(get_catalogo_facade)],
     skip: int = 0,
-    limit: int = 100,
-    use_case: ListProductsUseCase = Depends(get_list_products_use_case)
+    limit: int = 100
 ) -> List[CreateProductResponse]:
     """
     Endpoint para listar productos.
+    Usa la Facade del módulo Catálogo.
+    
+    Args:
+        skip: Número de registros a saltar (paginación)
+        limit: Número máximo de registros a retornar
+        facade: Facade del módulo inyectada automáticamente
+        
+    Returns:
+        Lista de productos
     """
-    return await use_case.execute(skip, limit)
+    return await facade.list_products(skip, limit)
 
 
 @router.get(

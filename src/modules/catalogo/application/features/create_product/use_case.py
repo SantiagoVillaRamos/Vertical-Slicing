@@ -4,13 +4,15 @@ Orquesta la lógica de aplicación para crear un producto.
 """
 from src.modules.catalogo.application.features.create_product.command import CreateProductCommand
 from src.modules.catalogo.application.features.create_product.response import CreateProductResponse
+from src.modules.catalogo.application.interfaces import ICreateProductUseCase
 from src.modules.catalogo.domain.entities import Product
 from src.modules.catalogo.domain.value_objects import SKU, Price, Stock
+from src.modules.catalogo.domain.factories import ProductFactory
 from src.modules.catalogo.domain.repositories import ProductRepository
 from src.core.exceptions import BusinessRuleViolation
 
 
-class CreateProductUseCase:
+class CreateProductUseCase(ICreateProductUseCase):
     """
     Caso de Uso: Crear un nuevo producto en el catálogo.
     
@@ -42,25 +44,23 @@ class CreateProductUseCase:
         Raises:
             BusinessRuleViolation: Si el SKU ya existe o hay violaciones de negocio
         """
-        # 1. Crear Value Objects (aquí se validan las reglas de dominio)
-        sku = SKU(value=command.sku)
-        price = Price(amount=command.price, currency=command.currency)
-        stock = Stock(quantity=command.initial_stock)
-        
-        # 2. Verificar que el SKU no exista (regla de negocio)
-        if await self.product_repository.exists_by_sku(sku):
-            raise BusinessRuleViolation(f"Ya existe un producto con el SKU: {sku}")
-        
-        # 3. Crear la entidad Product (aquí se validan reglas de la entidad)
-        product = Product(
-            sku=sku,
+        # 1. Crear la entidad Product usando el Factory
+        # (el factory crea los VOs y valida las reglas de construcción)
+        product = ProductFactory.create_from_primitives(
+            sku=command.sku,
             name=command.name,
             description=command.description,
-            price=price,
-            stock=stock
+            price=command.price,
+            currency=command.currency,
+            initial_stock=command.initial_stock
         )
+        # 2. Verificar que el SKU no exista (regla de aplicación)
+        if await self.product_repository.exists_by_sku(product.sku):
+            raise BusinessRuleViolation(
+                f"Ya existe un producto con el SKU: {product.sku}"
+            )
         
-        # 4. Persistir usando el repositorio
+        # 3. Persistir usando el repositorio
         saved_product = await self.product_repository.save(product)
         
         # 5. Mapear a Response DTO

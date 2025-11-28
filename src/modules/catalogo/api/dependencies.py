@@ -1,53 +1,66 @@
 """
 Funciones de Inyección de Dependencias para el módulo de Catálogo.
+Usa Singleton para repositorios y Facade como punto de entrada.
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 from typing import Annotated
 
 from src.core.database import get_db_session
-from src.modules.catalogo.infrastructure.repositories import SQLAlchemyProductRepository
+from src.modules.catalogo.infrastructure.repository_manager import RepositoryManager
+from src.modules.catalogo.application.facade import CatalogoFacade
+
+# Casos de Uso
 from src.modules.catalogo.application.features.create_product.use_case import CreateProductUseCase
-
 from src.modules.catalogo.application.features.list_products.use_case import ListProductsUseCase
+from src.modules.catalogo.application.features.reserve_stock.use_case import ReserveStockUseCase
 
 
-# Dependency: Product Repository
-async def get_product_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)] 
-) -> SQLAlchemyProductRepository:
+# ==================== Singleton Repository Manager ====================
+
+def get_repository_manager() -> RepositoryManager:
     """
-    Inyecta el repositorio de productos.
+    Obtiene la instancia Singleton del gestor de repositorios.
+    
+    Returns:
+        Instancia única del RepositoryManager
+    """
+    return RepositoryManager()
+
+
+# ==================== Facade ====================
+
+async def get_catalogo_facade(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    repo_manager: Annotated[RepositoryManager, Depends(get_repository_manager)]
+) -> CatalogoFacade:
+    """
+    Inyecta la Facade del módulo Catálogo.
+    
+    Esta función:
+    1. Obtiene el repositorio desde el Singleton
+    2. Crea instancias de los casos de uso
+    3. Construye y retorna la Facade
     
     Args:
-        session: Sesión de base de datos (inyectada automáticamente)
+        session: Sesión de base de datos (inyectada por FastAPI)
+        repo_manager: Gestor Singleton de repositorios
         
     Returns:
-        Instancia del repositorio de productos
+        Instancia configurada de CatalogoFacade
     """
-    return SQLAlchemyProductRepository(session)
-
-
-# Dependency: CreateProduct Use Case
-async def get_create_product_use_case(
-    repository: Annotated[SQLAlchemyProductRepository, Depends(get_product_repository)]
-) -> CreateProductUseCase:
-    """
-    Inyecta el caso de uso CreateProduct.
+    # Obtener repositorio desde el Singleton
+    product_repository = repo_manager.get_product_repository(session)
     
-    Args:
-        repository: Repositorio de productos (inyectado automáticamente)
-        
-    Returns:
-        Instancia del caso de uso
-    """
-    return CreateProductUseCase(repository)
-
-
-# Dependency: ListProducts Use Case
-async def get_list_products_use_case(
-    repository: Annotated[SQLAlchemyProductRepository, Depends(get_product_repository)]
-) -> "ListProductsUseCase":
-    """Inyecta el caso de uso ListProducts."""
+    # Crear casos de uso con el repositorio
+    create_product_uc = CreateProductUseCase(product_repository)
+    list_products_uc = ListProductsUseCase(product_repository)
+    reserve_stock_uc = ReserveStockUseCase(product_repository)
     
-    return ListProductsUseCase(repository)
+    # Construir y retornar la Facade
+    return CatalogoFacade(
+        create_product_use_case=create_product_uc,
+        list_products_use_case=list_products_uc,
+        reserve_stock_use_case=reserve_stock_uc
+    )
+

@@ -3,11 +3,12 @@ Caso de uso para listar productos.
 """
 from typing import List
 
+from src.modules.catalogo.application.interfaces import IListProductsUseCase
 from src.modules.catalogo.domain.repositories import ProductRepository
 from src.modules.catalogo.application.features.create_product.response import CreateProductResponse
 
 
-class ListProductsUseCase:
+class ListProductsUseCase(IListProductsUseCase):
     """
     Caso de uso: Listar Productos.
     Obtiene una lista paginada de productos del repositorio.

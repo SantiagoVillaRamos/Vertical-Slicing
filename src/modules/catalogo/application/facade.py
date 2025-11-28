@@ -1,0 +1,133 @@
+"""
+Facade del módulo Catálogo.
+Proporciona un punto único de entrada para todas las operaciones del catálogo.
+"""
+from typing import List
+
+from src.modules.catalogo.application.interfaces import (
+    ICreateProductUseCase,
+    IListProductsUseCase,
+    IReserveStockUseCase
+)
+from src.modules.catalogo.application.features.create_product.command import CreateProductCommand
+from src.modules.catalogo.application.features.create_product.response import CreateProductResponse
+from src.modules.catalogo.application.features.reserve_stock.command import ReserveStockCommand
+from src.modules.catalogo.application.features.reserve_stock.response import ReserveStockResponse
+
+
+class CatalogoFacade:
+    """
+    Facade para el módulo de Catálogo.
+    
+    Responsabilidades:
+    1. Proporcionar una API simplificada para operaciones del catálogo
+    2. Orquestar llamadas a múltiples casos de uso si es necesario
+    3. Servir como punto único de entrada al módulo
+    
+    Beneficios:
+    - Desacopla los endpoints de los casos de uso específicos
+    - Facilita cambios internos sin afectar la API
+    - Simplifica el testing de endpoints
+    - Permite orquestar operaciones complejas que involucran múltiples casos de uso
+    
+    Principios aplicados:
+    - Dependency Inversion: Depende de interfaces, no de implementaciones
+    - Single Responsibility: Solo orquesta, no implementa lógica de negocio
+    - Facade Pattern: Simplifica la interfaz del subsistema
+    """
+    
+    def __init__(
+        self,
+        create_product_use_case: ICreateProductUseCase,
+        list_products_use_case: IListProductsUseCase,
+        reserve_stock_use_case: IReserveStockUseCase
+    ):
+        """
+        Constructor con inyección de dependencias.
+        
+        Args:
+            create_product_use_case: Caso de uso para crear productos
+            list_products_use_case: Caso de uso para listar productos
+            reserve_stock_use_case: Caso de uso para reservar stock
+        """
+        self._create_product = create_product_use_case
+        self._list_products = list_products_use_case
+        self._reserve_stock = reserve_stock_use_case
+    
+    # ==================== Operaciones de Productos ====================
+    
+    async def create_product(self, command: CreateProductCommand) -> CreateProductResponse:
+        """
+        Crea un nuevo producto en el catálogo.
+        
+        Args:
+            command: Datos del producto a crear
+            
+        Returns:
+            Respuesta con los datos del producto creado
+            
+        Raises:
+            BusinessRuleViolation: Si el SKU ya existe o hay violaciones de negocio
+            ValidationError: Si los datos no son válidos
+        """
+        return await self._create_product.execute(command)
+    
+    async def list_products(self, skip: int = 0, limit: int = 100) -> List[CreateProductResponse]:
+        """
+        Lista productos del catálogo.
+        
+        Args:
+            skip: Número de registros a saltar (paginación)
+            limit: Número máximo de registros a retornar
+            
+        Returns:
+            Lista de productos
+        """
+        return await self._list_products.execute(skip, limit)
+    
+    # ==================== Operaciones de Stock ====================
+    
+    async def reserve_stock(self, command: ReserveStockCommand) -> ReserveStockResponse:
+        """
+        Reserva stock de productos.
+        
+        Esta operación es crítica para la comunicación entre módulos.
+        Es llamada por el módulo de Pedidos.
+        
+        Args:
+            command: Datos de los productos y cantidades a reservar
+            
+        Returns:
+            Respuesta con el resultado de la reserva
+            
+        Raises:
+            NotFoundError: Si algún producto no existe
+            BusinessRuleViolation: Si no hay stock suficiente
+        """
+        return await self._reserve_stock.execute(command)
+    
+    # ==================== Operaciones Compuestas (Futuro) ====================
+    
+    async def create_product_with_validation(
+        self, 
+        command: CreateProductCommand,
+        validate_supplier: bool = False
+    ) -> CreateProductResponse:
+        """
+        Ejemplo de operación compuesta que la facade puede orquestar.
+        
+        En el futuro, podría:
+        1. Validar con módulo de proveedores
+        2. Crear el producto
+        3. Notificar a otros módulos
+        
+        Args:
+            command: Datos del producto a crear
+            validate_supplier: Si debe validar con módulo de proveedores
+            
+        Returns:
+            Respuesta con los datos del producto creado
+        """
+        # Por ahora, solo delega al caso de uso simple
+        # En el futuro, aquí se puede agregar lógica de orquestación
+        return await self._create_product.execute(command)
