@@ -9,8 +9,8 @@ from src.modules.catalogo.application.interfaces import (
     IListProductsUseCase,
     IReserveStockUseCase
 )
+from src.modules.catalogo.domain.entities import Product
 from src.modules.catalogo.application.features.create_product.command import CreateProductCommand
-from src.modules.catalogo.application.features.create_product.response import CreateProductResponse
 from src.modules.catalogo.application.features.reserve_stock.command import ReserveStockCommand
 from src.modules.catalogo.application.features.reserve_stock.response import ReserveStockResponse
 
@@ -23,17 +23,6 @@ class CatalogoFacade:
     1. Proporcionar una API simplificada para operaciones del catálogo
     2. Orquestar llamadas a múltiples casos de uso si es necesario
     3. Servir como punto único de entrada al módulo
-    
-    Beneficios:
-    - Desacopla los endpoints de los casos de uso específicos
-    - Facilita cambios internos sin afectar la API
-    - Simplifica el testing de endpoints
-    - Permite orquestar operaciones complejas que involucran múltiples casos de uso
-    
-    Principios aplicados:
-    - Dependency Inversion: Depende de interfaces, no de implementaciones
-    - Single Responsibility: Solo orquesta, no implementa lógica de negocio
-    - Facade Pattern: Simplifica la interfaz del subsistema
     """
     
     def __init__(
@@ -56,7 +45,7 @@ class CatalogoFacade:
     
     # ==================== Operaciones de Productos ====================
     
-    async def create_product(self, command: CreateProductCommand) -> CreateProductResponse:
+    async def create_product(self, command: CreateProductCommand) -> Product:
         """
         Crea un nuevo producto en el catálogo.
         
@@ -64,7 +53,7 @@ class CatalogoFacade:
             command: Datos del producto a crear
             
         Returns:
-            Respuesta con los datos del producto creado
+            Entidad de dominio Product creada
             
         Raises:
             BusinessRuleViolation: Si el SKU ya existe o hay violaciones de negocio
@@ -72,7 +61,7 @@ class CatalogoFacade:
         """
         return await self._create_product.execute(command)
     
-    async def list_products(self, skip: int = 0, limit: int = 100) -> List[CreateProductResponse]:
+    async def list_products(self, skip: int = 0, limit: int = 100) -> List[Product]:
         """
         Lista productos del catálogo.
         
@@ -81,7 +70,7 @@ class CatalogoFacade:
             limit: Número máximo de registros a retornar
             
         Returns:
-            Lista de productos
+            Lista de entidades de dominio Product
         """
         return await self._list_products.execute(skip, limit)
     

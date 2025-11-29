@@ -8,9 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalogo.domain.entities import Product
-from src.modules.catalogo.domain.value_objects import SKU, Price, Stock
+from src.modules.catalogo.domain.value_objects import SKU
 from src.modules.catalogo.domain.repositories import ProductRepository
 from src.modules.catalogo.infrastructure.models import ProductModel
+from src.modules.catalogo.infrastructure.mappers import ProductMapper
 
 
 class SQLAlchemyProductRepository(ProductRepository):
@@ -18,8 +19,8 @@ class SQLAlchemyProductRepository(ProductRepository):
     Implementación del ProductRepository usando SQLAlchemy.
     
     Responsabilidades:
-    1. Mapear entre entidades de dominio (Product) y modelos de BD (ProductModel)
-    2. Ejecutar operaciones CRUD en la base de datos
+    - Ejecutar operaciones CRUD en la base de datos
+    - Delegar el mapeo a ProductMapper
     """
     
     def __init__(self, session: AsyncSession):
@@ -31,46 +32,15 @@ class SQLAlchemyProductRepository(ProductRepository):
         """
         self.session = session
     
-    # Métodos de mapeo (Domain <-> ORM)
-    
-    def _to_domain(self, model: ProductModel) -> Product:
-        """Convierte un ProductModel (ORM) a Product (Dominio)."""
-        return Product(
-            product_id=model.product_id,
-            sku=SKU(value=model.sku),
-            name=model.name,
-            description=model.description,
-            price=Price(amount=model.price_amount, currency=model.price_currency),
-            stock=Stock(quantity=model.stock_quantity),
-            is_active=model.is_active,
-            created_at=model.created_at,
-            updated_at=model.updated_at
-        )
-    
-    def _to_model(self, product: Product) -> ProductModel:
-        """Convierte un Product (Dominio) a ProductModel (ORM)."""
-        return ProductModel(
-            product_id=product.product_id,
-            sku=str(product.sku),
-            name=product.name,
-            description=product.description,
-            price_amount=product.price.amount,
-            price_currency=product.price.currency,
-            stock_quantity=product.stock.quantity,
-            is_active=product.is_active,
-            created_at=product.created_at,
-            updated_at=product.updated_at
-        )
-    
     # Implementación de los métodos del puerto
     
     async def save(self, product: Product) -> Product:
         """Guarda un nuevo producto en la base de datos."""
-        model = self._to_model(product)
+        model = ProductMapper.to_model(product)
         self.session.add(model)
         await self.session.flush()  # Para obtener el ID generado
         await self.session.refresh(model)
-        return self._to_domain(model)
+        return ProductMapper.to_domain(model)
     
     async def update(self, product: Product) -> Product:
         """Actualiza un producto existente."""
@@ -82,19 +52,12 @@ class SQLAlchemyProductRepository(ProductRepository):
         if not model:
             raise ValueError(f"Producto con ID {product.product_id} no encontrado")
         
-        # Actualizar campos
-        model.sku = str(product.sku)
-        model.name = product.name
-        model.description = product.description
-        model.price_amount = product.price.amount
-        model.price_currency = product.price.currency
-        model.stock_quantity = product.stock.quantity
-        model.is_active = product.is_active
-        model.updated_at = product.updated_at
+        # Actualizar campos usando el mapper
+        ProductMapper.update_model(model, product)
         
         await self.session.flush()
         await self.session.refresh(model)
-        return self._to_domain(model)
+        return ProductMapper.to_domain(model)
     
     async def get_by_id(self, product_id: UUID) -> Optional[Product]:
         """Busca un producto por su ID."""
@@ -102,7 +65,7 @@ class SQLAlchemyProductRepository(ProductRepository):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         
-        return self._to_domain(model) if model else None
+        return ProductMapper.to_domain(model) if model else None
     
     async def get_by_sku(self, sku: SKU) -> Optional[Product]:
         """Busca un producto por su SKU."""
@@ -110,7 +73,7 @@ class SQLAlchemyProductRepository(ProductRepository):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         
-        return self._to_domain(model) if model else None
+        return ProductMapper.to_domain(model) if model else None
     
     async def get_all(self, skip: int = 0, limit: int = 100) -> List[Product]:
         """Obtiene todos los productos con paginación."""
@@ -118,7 +81,7 @@ class SQLAlchemyProductRepository(ProductRepository):
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         
-        return [self._to_domain(model) for model in models]
+        return [ProductMapper.to_domain(model) for model in models]
     
     async def delete(self, product_id: UUID) -> bool:
         """Elimina un producto por su ID."""

@@ -11,6 +11,8 @@ from src.modules.catalogo.application.features.create_product.response import Cr
 from src.modules.catalogo.api.dependencies import get_catalogo_facade
 
 
+from src.modules.catalogo.api.mappers import ProductDTOMapper
+
 # Router del módulo
 router = APIRouter()
 
@@ -38,7 +40,12 @@ async def create_product(
     Returns:
         Datos del producto creado
     """
-    return await facade.create_product(command)
+    
+    # 1. Pasar la entidad a la facade
+    saved_product = await facade.create_product(command)
+    
+    # 2. Mapear a DTO de respuesta
+    return ProductDTOMapper.domain_to_response(saved_product)
 
 
 @router.get(
@@ -64,7 +71,11 @@ async def list_products(
     Returns:
         Lista de productos
     """
-    return await facade.list_products(skip, limit)
+    # La facade retorna una lista de entidades de dominio
+    products = await facade.list_products(skip, limit)
+    
+    # Mapeamos a lista de DTOs de respuesta
+    return [ProductDTOMapper.domain_to_response(p) for p in products]
 
 
 @router.get(

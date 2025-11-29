@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import List
 
 from src.modules.catalogo.application.features.create_product.command import CreateProductCommand
-from src.modules.catalogo.application.features.create_product.response import CreateProductResponse
+from src.modules.catalogo.domain.entities import Product
 from src.modules.catalogo.application.features.reserve_stock.command import ReserveStockCommand
 from src.modules.catalogo.application.features.reserve_stock.response import ReserveStockResponse
 
@@ -20,7 +20,7 @@ class ICreateProductUseCase(ABC):
     """
     
     @abstractmethod
-    async def execute(self, command: CreateProductCommand) -> CreateProductResponse:
+    async def execute(self, command: CreateProductCommand) -> Product:
         """
         Ejecuta la creación de un producto.
         
@@ -28,7 +28,7 @@ class ICreateProductUseCase(ABC):
             command: Datos del producto a crear
             
         Returns:
-            Respuesta con los datos del producto creado
+            Entidad de dominio Product creada
             
         Raises:
             BusinessRuleViolation: Si el SKU ya existe o hay violaciones de negocio
@@ -46,7 +46,7 @@ class IListProductsUseCase(ABC):
     """
     
     @abstractmethod
-    async def execute(self, skip: int = 0, limit: int = 100) -> List[CreateProductResponse]:
+    async def execute(self, skip: int = 0, limit: int = 100) -> List[Product]:
         """
         Ejecuta el listado de productos.
         
@@ -55,7 +55,7 @@ class IListProductsUseCase(ABC):
             limit: Número máximo de registros a retornar
             
         Returns:
-            Lista de productos
+            Lista de entidades de dominio Product
         """
         pass
 
